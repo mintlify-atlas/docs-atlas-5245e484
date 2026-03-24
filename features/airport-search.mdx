@@ -1,0 +1,131 @@
+---
+title: "Airport search"
+description: "Search for any airport worldwide using its IATA or ICAO code."
+---
+
+The airport search feature lets you look up any airport by its IATA or ICAO code and view its full details in one place. A successful search also gives you the option to save the airport to your favorites.
+
+## How to search
+
+<Steps>
+  <Step title="Open the search page">
+    Navigate to `/` (the home page). You will see a single input field labeled **Código IATA**.
+  </Step>
+  <Step title="Enter an airport code">
+    Type any IATA code (e.g. `MEX`, `JFK`, `LHR`) or ICAO code (e.g. `KJFK`, `LEMD`) into the field and click **Buscar**.
+
+    <Note>
+      The search is case-insensitive. The view automatically uppercases the input before sending it to the API, so `mex`, `Mex`, and `MEX` all produce the same result.
+    </Note>
+
+    Example codes to try:
+
+    | Code | Airport |
+    |------|---------|
+    | `MEX` | Mexico City International |
+    | `JFK` | John F. Kennedy International (New York) |
+    | `LHR` | London Heathrow |
+    | `LEMD` | Adolfo Suárez Madrid–Barajas (ICAO) |
+  </Step>
+  <Step title="Review the results">
+    If the code is valid, a card appears below the form showing the airport's full details. If the code is not found, an error message is displayed.
+  </Step>
+  <Step title="Add to favorites (optional)">
+    Below the airport details, enter an optional personal note and click **Agregar a Favoritos** to save the airport to your account. See [Favorites](/features/favorites) for more information.
+  </Step>
+</Steps>
+
+## Displayed airport data
+
+The following fields are read from the `data.attributes` object returned by the API and displayed in the result card:
+
+<ResponseField name="name" type="string">
+  The full official name of the airport (e.g. *Benito Juarez International Airport*).
+</ResponseField>
+
+<ResponseField name="city" type="string">
+  The city the airport serves (e.g. *Mexico City*).
+</ResponseField>
+
+<ResponseField name="country" type="string">
+  The country where the airport is located (e.g. *Mexico*).
+</ResponseField>
+
+<ResponseField name="iata" type="string">
+  The three-letter IATA code (e.g. `MEX`).
+</ResponseField>
+
+<ResponseField name="icao" type="string">
+  The four-letter ICAO code. Sourced from `data.id` in the API response (e.g. `MMMX`).
+</ResponseField>
+
+<ResponseField name="latitude" type="string">
+  The geographic latitude of the airport in decimal degrees.
+</ResponseField>
+
+<ResponseField name="longitude" type="string">
+  The geographic longitude of the airport in decimal degrees.
+</ResponseField>
+
+<ResponseField name="altitude" type="integer">
+  The elevation of the airport above sea level, expressed in **feet**.
+</ResponseField>
+
+<ResponseField name="timezone" type="string">
+  The IANA timezone identifier for the airport's local time (e.g. `America/Mexico_City`).
+</ResponseField>
+
+## Underlying API call
+
+When the form is submitted the view makes a single `GET` request to the AirportGap API:
+
+```
+GET https://airportgap.com/api/airports/{code}
+```
+
+The `{code}` segment is the uppercased value submitted by the user. No authentication token is required for this endpoint.
+
+### Example response
+
+```json
+{
+  "data": {
+    "id": "MMMX",
+    "type": "airport",
+    "attributes": {
+      "name": "Benito Juarez International Airport",
+      "city": "Mexico City",
+      "country": "Mexico",
+      "iata": "MEX",
+      "icao": "MMMX",
+      "latitude": "19.4363",
+      "longitude": "-99.0721",
+      "altitude": 7316,
+      "timezone": "America/Mexico_City"
+    }
+  }
+}
+```
+
+## View function
+
+The search is handled by the `inicio` view in `aeropuertos/views.py`:
+
+```python
+def inicio(request):
+    aeropuerto = None
+    error = None
+    if request.method == 'POST':
+        codigo = request.POST.get('codigo', '').upper().strip()
+        response = requests.get(f'{API_BASE}/airports/{codigo}')
+        if response.status_code == 200:
+            aeropuerto = response.json().get('data', {})
+        else:
+            error = f'No se encontró el aeropuerto con código {codigo}.'
+    return render(request, 'aeropuertos/inicio.html', {
+        'aeropuerto': aeropuerto,
+        'error': error
+    })
+```
+
+On a `GET` request the view renders the empty form. On `POST` it calls the API, stores the result (or an error message) in the template context, and re-renders the same page.

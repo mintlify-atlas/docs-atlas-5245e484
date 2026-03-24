@@ -1,0 +1,54 @@
+{
+  "projectType": "saas",
+  "projectName": "Airport Manager",
+  "projectDescription": "A Django web application for searching airports by IATA/ICAO code, managing favorite airports, calculating distances between airports, and comparing airport details using the AirportGap API.",
+  "theme": "almond",
+  "primaryColor": "#1d4ed8",
+  "lightColor": "#3b82f6",
+  "darkColor": "#1e3a8a",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": ["introduction", "quickstart"]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/airport-search",
+              "features/favorites",
+              "features/distance-calculator",
+              "features/airport-comparison"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": ["configuration/environment", "configuration/settings"]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Airport search by IATA or ICAO code",
+    "Favorites management — save and remove airports with personal notes",
+    "Distance calculator between two airports",
+    "Side-by-side airport comparison",
+    "Integration with the AirportGap REST API",
+    "Token-based authentication for personalized favorites"
+  ],
+  "publicApiSurface": [
+    "GET / — Airport search page (inicio)",
+    "POST / — Search airport by IATA/ICAO code",
+    "GET /favoritos/ — List saved favorite airports",
+    "POST /favoritos/agregar/ — Add an airport to favorites",
+    "POST /favoritos/eliminar/<id>/ — Remove an airport from favorites",
+    "GET /distancia/ — Distance calculator page",
+    "POST /distancia/ — Calculate distance between two airports",
+    "GET /comparar/ — Airport comparison page",
+    "POST /comparar/ — Compare two airports by IATA/ICAO codes"
+  ]
+}

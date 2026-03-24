@@ -1,0 +1,97 @@
+---
+title: "Airport comparison"
+description: "Compare two airports side-by-side."
+---
+
+The airport comparison feature fetches full details for two airports simultaneously and displays them in a two-column layout, making it easy to contrast their location, codes, altitude, and timezone at a glance.
+
+## How to compare two airports
+
+<Steps>
+  <Step title="Open the comparison page">
+    Navigate to `/comparar/`. You will see two input fields side by side: **Aeropuerto 1** and **Aeropuerto 2**.
+  </Step>
+  <Step title="Enter two airport codes">
+    Type an IATA or ICAO code into each field. Both inputs are case-insensitive.
+
+    For example:
+
+    | Field | Code | Airport |
+    |-------|------|---------|
+    | Aeropuerto 1 | `MEX` | Mexico City International |
+    | Aeropuerto 2 | `JFK` | John F. Kennedy International |
+  </Step>
+  <Step title="Click Comparar">
+    Click the **Comparar** button. The form submits a `POST` request to `/comparar/`.
+  </Step>
+  <Step title="Review the side-by-side comparison">
+    Two cards appear below the form, one for each airport, showing all available details. If either code is not recognized by the API, an error message is displayed instead.
+  </Step>
+</Steps>
+
+## Displayed fields
+
+Both airport cards display the same set of fields, sourced from `data.attributes`:
+
+| Field | Description |
+|-------|-------------|
+| Name | Full official airport name |
+| City | City served by the airport |
+| Country | Country where the airport is located |
+| IATA | Three-letter IATA code |
+| ICAO | Four-letter ICAO code (from `data.id`) |
+| Latitude | Decimal degrees latitude |
+| Longitude | Decimal degrees longitude |
+| Altitude | Elevation above sea level in feet |
+| Timezone | IANA timezone identifier |
+
+## Underlying API calls
+
+The view makes two independent `GET` requests in sequence — one for each airport:
+
+```
+GET https://airportgap.com/api/airports/{code1}
+GET https://airportgap.com/api/airports/{code2}
+```
+
+Both requests must return `200` for the comparison to render. If either fails, the error message is shown and no comparison is displayed.
+
+## View function
+
+The comparison is handled by the `comparar_aeropuertos` view in `aeropuertos/views.py`:
+
+```python
+def comparar_aeropuertos(request):
+    aeropuerto1 = None
+    aeropuerto2 = None
+    error = None
+    if request.method == 'POST':
+        codigo1 = request.POST.get('codigo1', '').upper().strip()
+        codigo2 = request.POST.get('codigo2', '').upper().strip()
+        r1 = requests.get(f'{API_BASE}/airports/{codigo1}')
+        r2 = requests.get(f'{API_BASE}/airports/{codigo2}')
+        if r1.status_code == 200 and r2.status_code == 200:
+            aeropuerto1 = r1.json().get('data', {})
+            aeropuerto2 = r2.json().get('data', {})
+        else:
+            error = 'No se encontró uno o ambos aeropuertos. Verifica los códigos ingresados.'
+    return render(request, 'aeropuertos/comparar.html', {
+        'aeropuerto1': aeropuerto1,
+        'aeropuerto2': aeropuerto2,
+        'error': error
+    })
+```
+
+## Use cases
+
+<Tip>
+  Compare the two main airports serving the same metropolitan area — for example `JFK` vs `LGA` (New York) or `LHR` vs `LGW` (London) — to quickly see differences in altitude, coordinates, and timezone offset.
+</Tip>
+
+<Tip>
+  Use the comparison page when planning a connecting flight to check whether both airports share the same timezone, helping you avoid confusion between local departure and arrival times.
+</Tip>
+
+<Tip>
+  Compare hub airports in the same region to understand their geographic spread. For example, `CDG` (Paris) vs `AMS` (Amsterdam) shows exactly how far apart two major European hubs are before you use the [distance calculator](/features/distance-calculator).
+</Tip>

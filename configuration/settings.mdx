@@ -1,0 +1,140 @@
+---
+title: "Django settings"
+description: "Overview of Airport Manager's Django configuration."
+---
+
+All Django configuration lives in `airport_manager/settings.py`. This page documents the key settings and what you need to change before deploying to production.
+
+## DEBUG
+
+```python
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = True
+```
+
+<Warning>
+  `DEBUG = True` exposes detailed error pages (including stack traces and local variable values) to anyone who triggers an error. Set `DEBUG = False` in every production environment.
+</Warning>
+
+## SECRET\_KEY
+
+```python
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = 'django-insecure-10ji!67is5i@mhshu3jnn9gm8bspm&&(lj!@g^4(ontjo9_b=)'
+```
+
+<Warning>
+  The repository ships with a hardcoded, publicly known `SECRET_KEY`. This key **must** be replaced before deploying. Django uses `SECRET_KEY` to sign cookies, sessions, and CSRF tokens — anyone who knows the key can forge these values. See the [Production checklist](#production-checklist) below for how to generate a secure key.
+</Warning>
+
+## ALLOWED\_HOSTS
+
+```python
+ALLOWED_HOSTS = []
+```
+
+With `DEBUG = True`, Django accepts requests from `localhost` and `127.0.0.1` even when `ALLOWED_HOSTS` is empty. In production (where `DEBUG = False`), every request will be rejected with a `400 Bad Request` unless your domain is listed here. For example:
+
+```python
+ALLOWED_HOSTS = ['airportmanager.example.com', 'www.airportmanager.example.com']
+```
+
+## DATABASES
+
+```python
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
+}
+```
+
+The default configuration uses SQLite, stored at `db.sqlite3` in the project root. SQLite is suitable for local development and low-traffic single-server deployments. For production workloads, replace this with a PostgreSQL (or other) database.
+
+## INSTALLED\_APPS
+
+```python
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'aeropuertos',
+]
+```
+
+The `aeropuertos` app contains all views, templates, and URL routes for Airport Manager. The remaining entries are standard Django contrib apps.
+
+## STATIC\_URL
+
+```python
+STATIC_URL = 'static/'
+```
+
+Static files are served from the `static/` URL prefix. Run `python manage.py collectstatic` before deploying to gather all static assets into a single directory for your web server.
+
+## TIME\_ZONE
+
+```python
+TIME_ZONE = 'UTC'
+```
+
+All datetimes are stored and displayed in UTC. `USE_TZ = True` is also set, so Django uses timezone-aware datetimes throughout.
+
+## AIRPORT\_GAP\_TOKEN
+
+```python
+AIRPORT_GAP_TOKEN = os.getenv('AIRPORT_GAP_TOKEN')
+```
+
+This setting is loaded from the environment via `python-dotenv`. See the [Environment variables](/configuration/environment) page for full details on how to obtain and configure the token.
+
+---
+
+## Production checklist
+
+<Steps>
+  <Step title="Set DEBUG = False">
+    Open `airport_manager/settings.py` and change:
+
+    ```python
+    DEBUG = False
+    ```
+  </Step>
+  <Step title="Generate a secure SECRET_KEY">
+    Run the following command to generate a cryptographically secure key, then replace the hardcoded value in `settings.py` (or set it via an environment variable):
+
+    ```bash
+    python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+    ```
+  </Step>
+  <Step title="Set ALLOWED_HOSTS">
+    Add your production domain(s) to `ALLOWED_HOSTS`:
+
+    ```python
+    ALLOWED_HOSTS = ['yourdomain.com', 'www.yourdomain.com']
+    ```
+  </Step>
+  <Step title="Configure a production database">
+    Replace the SQLite `DATABASES` config with a PostgreSQL connection. Install `psycopg2` and update the setting:
+
+    ```python
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('DB_NAME'),
+            'USER': os.getenv('DB_USER'),
+            'PASSWORD': os.getenv('DB_PASSWORD'),
+            'HOST': os.getenv('DB_HOST', 'localhost'),
+            'PORT': os.getenv('DB_PORT', '5432'),
+        }
+    }
+    ```
+  </Step>
+  <Step title="Set AIRPORT_GAP_TOKEN in your production environment">
+    Add `AIRPORT_GAP_TOKEN` to your production environment's secrets (e.g., a `.env` file on the server, a secrets manager, or platform environment variables). See the [Environment variables](/configuration/environment) page for details.
+  </Step>
+</Steps>

@@ -1,0 +1,102 @@
+---
+title: "Favorites"
+description: "Save airports to your personal favorites list with optional notes."
+---
+
+The favorites feature lets you bookmark airports discovered through the search page. Each favorite can include a personal note. Favorites are stored in your AirportGap account — the app makes API calls to AirportGap's servers and does not keep a local copy.
+
+<Warning>
+  All favorites endpoints require a valid `AIRPORT_GAP_TOKEN` set in the project's `.env` file. Without it, requests to add, list, or remove favorites will fail with an authorization error.
+</Warning>
+
+## Viewing favorites
+
+Navigate to `/favoritos/`. The page fetches all favorites associated with your token from AirportGap and renders them as a list of cards. Each card shows:
+
+- Airport name
+- City and country
+- IATA and ICAO codes
+- Your personal note (if one was added)
+
+If you have no saved favorites, an empty state is shown with a link back to the search page.
+
+## Adding a favorite
+
+<Steps>
+  <Step title="Search for an airport">
+    Go to `/` and search for the airport you want to save. See [Airport search](/features/airport-search) for instructions.
+  </Step>
+  <Step title="Add an optional note">
+    After the result card appears, type a personal note into the text field below the airport details. This field is optional — leave it blank if you don't need a note.
+  </Step>
+  <Step title="Click Agregar a Favoritos">
+    Click the **Agregar a Favoritos** button. The form submits a `POST` request to `/favoritos/agregar/` with two fields:
+
+    - `airport_id` — the ICAO code of the airport (taken from `data.id` in the search result)
+    - `nota` — the optional personal note text
+  </Step>
+  <Step title="Confirm in the favorites list">
+    You are redirected to `/favoritos/` where the newly saved airport appears in your list.
+  </Step>
+</Steps>
+
+## Removing a favorite
+
+<Steps>
+  <Step title="Open the favorites page">
+    Navigate to `/favoritos/`.
+  </Step>
+  <Step title="Click Eliminar">
+    Each favorite card has a red **Eliminar** button. Clicking it submits a `POST` request to `/favoritos/eliminar/{id}/` where `{id}` is the AirportGap favorite record ID.
+  </Step>
+  <Step title="Confirm removal">
+    The page reloads and the airport no longer appears in your list.
+  </Step>
+</Steps>
+
+## View functions
+
+The three operations are handled by separate views in `aeropuertos/views.py`.
+
+### Listing favorites
+
+```python
+def lista_favoritos(request):
+    response = requests.get(f'{API_BASE}/favorites', headers=HEADERS)
+    favoritos = response.json().get('data', []) if response.status_code == 200 else []
+    return render(request, 'aeropuertos/favoritos.html', {'favoritos': favoritos})
+```
+
+### Adding a favorite
+
+```python
+def agregar_favorito(request):
+    if request.method == 'POST':
+        airport_id = request.POST.get('airport_id')
+        nota = request.POST.get('nota', '')
+        response = requests.post(
+            f'{API_BASE}/favorites',
+            headers=HEADERS,
+            json={'airport_id': airport_id, 'note': nota}
+        )
+    return redirect('lista_favoritos')
+```
+
+### Removing a favorite
+
+```python
+def eliminar_favorito(request, favorito_id):
+    if request.method == 'POST':
+        requests.delete(f'{API_BASE}/favorites/{favorito_id}', headers=HEADERS)
+    return redirect('lista_favoritos')
+```
+
+All three functions attach `HEADERS` (which contains the Bearer token read from `settings.AIRPORT_GAP_TOKEN`) to every request that modifies or reads account data.
+
+## URL routes
+
+| Method | URL | Action |
+|--------|-----|--------|
+| `GET` | `/favoritos/` | List all favorites |
+| `POST` | `/favoritos/agregar/` | Add a new favorite |
+| `POST` | `/favoritos/eliminar/{id}/` | Remove a favorite by its AirportGap record ID |

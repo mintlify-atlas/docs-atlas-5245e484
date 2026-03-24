@@ -1,0 +1,95 @@
+---
+title: "Introduction"
+description: "Learn what Airport Manager is and how it works."
+---
+
+Airport Manager is a Django web application that wraps the [AirportGap REST API](https://airportgap.com/api) to provide a clean interface for searching airports, managing a personal favorites list, calculating flight distances, and comparing two airports side by side.
+
+All airport data — codes, names, locations, timezones, and more — is fetched live from AirportGap. Airport Manager does not maintain its own airport database; it acts as a stateless frontend that delegates every data request to the external API.
+
+<Info>
+  Airport Manager uses AirportGap's bearer token authentication. You will need a free AirportGap account and API token before you can use the favorites features. Search and distance calculations work without a token.
+</Info>
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="Airport search" icon="magnifying-glass">
+    Look up any airport by its IATA or ICAO code. The app queries `GET /airports/{code}` and renders the full airport record — name, city, country, timezone, and coordinates — in a single view.
+  </Card>
+  <Card title="Favorites management" icon="star">
+    Save airports to your AirportGap favorites list with an optional personal note. View all saved favorites and remove them individually. Backed by `GET /favorites`, `POST /favorites`, and `DELETE /favorites/{id}`.
+  </Card>
+  <Card title="Distance calculator" icon="ruler">
+    Enter an origin and destination airport code to get the great-circle distance between them. The app posts both codes to `POST /airports/distance` and displays the result in kilometers and miles.
+  </Card>
+  <Card title="Airport comparison" icon="arrows-left-right">
+    Fetch two airports simultaneously and render their details side by side. Useful for quickly contrasting timezone, country, or coordinates without switching between separate searches.
+  </Card>
+</CardGroup>
+
+## How it integrates with AirportGap
+
+Every Django view in `aeropuertos/views.py` makes HTTP requests directly to `https://airportgap.com/api` using the `requests` library. There is no caching layer or local data store for airport records.
+
+```python
+API_BASE = 'https://airportgap.com/api'
+HEADERS = {'Authorization': f'Bearer {settings.AIRPORT_GAP_TOKEN}'}
+```
+
+The token is loaded from the `AIRPORT_GAP_TOKEN` environment variable via `python-dotenv` and injected into the `Authorization` header for any endpoint that requires authentication (favorites endpoints). Public endpoints — airport lookup and distance calculation — are called without the `Authorization` header.
+
+<Note>
+  The AirportGap token is only required for favorites features. If you leave `AIRPORT_GAP_TOKEN` unset, airport search and distance calculation will still work normally.
+</Note>
+
+### URL routing
+
+The `aeropuertos` app registers six URL patterns:
+
+| URL | View | Description |
+|-----|------|-------------|
+| `/` | `inicio` | Airport search form and result |
+| `/favoritos/` | `lista_favoritos` | List all saved favorites |
+| `/favoritos/agregar/` | `agregar_favorito` | Add an airport to favorites |
+| `/favoritos/eliminar/<id>/` | `eliminar_favorito` | Remove a favorite by ID |
+| `/distancia/` | `calcular_distancia` | Distance calculator |
+| `/comparar/` | `comparar_aeropuertos` | Side-by-side airport comparison |
+
+## Technology stack
+
+| Component | Details |
+|-----------|---------|
+| **Framework** | Django 6.0.3 |
+| **Language** | Python 3.x |
+| **Database** | SQLite (`db.sqlite3`) — used for Django sessions, admin, and auth only |
+| **External API** | AirportGap REST API (`https://airportgap.com/api`) |
+| **HTTP client** | `requests` (via `requests.get` / `requests.post` / `requests.delete`) |
+| **Environment** | `python-dotenv` — loads `.env` at startup via `load_dotenv()` |
+| **ASGI server** | `asgiref` 3.11.1 |
+| **SQL parser** | `sqlparse` 0.5.5 (Django dependency) |
+
+<Note>
+  `requests` and `python-dotenv` are used by the application but are not listed in `requirements.txt`. Install them separately: `pip install requests python-dotenv`.
+</Note>
+
+## Architecture overview
+
+Airport Manager follows a thin-client architecture where Django views act as an API proxy:
+
+```
+Browser  ──POST/GET──▶  Django view  ──HTTP──▶  AirportGap API
+                              │
+                              ▼
+                       Django template
+                              │
+                              ▼
+                           Browser
+```
+
+1. The user submits a form in the browser.
+2. A Django view receives the form data, constructs an AirportGap API request, and calls the external endpoint.
+3. The API response is parsed from JSON and passed as template context.
+4. A Django HTML template renders the data and returns it to the browser.
+
+SQLite is only used by Django's built-in apps (sessions, admin, auth). No airport data is persisted locally — every page load fetches fresh data from AirportGap.

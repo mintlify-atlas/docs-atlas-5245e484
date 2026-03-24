@@ -1,0 +1,78 @@
+---
+title: "Environment variables"
+description: "Configure Airport Manager using environment variables."
+---
+
+Airport Manager uses a `.env` file to manage secrets and environment-specific configuration. The only required environment variable is the AirportGap API token, which is needed for the favorites feature.
+
+## Setup
+
+Copy the provided example file to create your own `.env`:
+
+```bash
+cp .env.example .env
+```
+
+The `.env.example` file contains:
+
+```bash
+AIRPORT_GAP_TOKEN=aqui_va_un_token
+```
+
+Replace `aqui_va_un_token` with your actual AirportGap token.
+
+<Note>
+  The `.env` file is listed in `.gitignore` and should never be committed to version control. It contains secrets that must stay out of your repository.
+</Note>
+
+## Environment variables
+
+<ParamField path="AIRPORT_GAP_TOKEN" type="string" required>
+  Bearer token for authenticating with the AirportGap API. Required for all favorites endpoints (listing, adding, and removing favorites).
+</ParamField>
+
+<Warning>
+  Without a valid `AIRPORT_GAP_TOKEN`, any request to the favorites endpoints will fail with a `401 Unauthorized` or `403 Forbidden` response from the AirportGap API. Airport search and the distance calculator work without a token.
+</Warning>
+
+### Getting an AirportGap token
+
+Register an account at [https://airportgap.com](https://airportgap.com), then retrieve your token from your account settings page. Copy the token and paste it as the value of `AIRPORT_GAP_TOKEN` in your `.env` file.
+
+## How the token is loaded
+
+`settings.py` uses `python-dotenv` to load the `.env` file at startup, then reads the token with `os.getenv`.
+
+<Note>
+  `python-dotenv` is not included in `requirements.txt`. Install it manually with `pip install python-dotenv` if it is not already present in your environment.
+</Note>
+
+```python
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+AIRPORT_GAP_TOKEN = os.getenv('AIRPORT_GAP_TOKEN')
+```
+
+The setting is then consumed in `aeropuertos/views.py` to build the `Authorization` header for every AirportGap API request that requires authentication:
+
+```python
+from django.conf import settings
+
+HEADERS = {'Authorization': f'Bearer {settings.AIRPORT_GAP_TOKEN}'}
+```
+
+This `HEADERS` dict is passed to `requests.get`, `requests.post`, and `requests.delete` calls in the favorites views (`lista_favoritos`, `agregar_favorito`, `eliminar_favorito`).
+
+## Which features require the token
+
+| Feature | Token required |
+|---|---|
+| Airport search (`/`) | No |
+| Distance calculator (`/distancia/`) | No |
+| Airport comparator (`/comparar/`) | No |
+| List favorites (`/favoritos/`) | Yes |
+| Add favorite | Yes |
+| Remove favorite | Yes |

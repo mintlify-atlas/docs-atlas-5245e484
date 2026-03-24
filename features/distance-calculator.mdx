@@ -1,0 +1,131 @@
+---
+title: "Distance calculator"
+description: "Calculate the distance between two airports."
+---
+
+The distance calculator lets you find the straight-line distance between any two airports by entering their IATA or ICAO codes. Results are returned in kilometers and miles.
+
+## How to calculate a distance
+
+<Steps>
+  <Step title="Open the distance page">
+    Navigate to `/distancia/`. You will see two input fields side by side: **Aeropuerto Origen** and **Aeropuerto Destino**.
+  </Step>
+  <Step title="Enter origin and destination codes">
+    Type the IATA or ICAO code for each airport. Both inputs are case-insensitive — the view uppercases them before sending to the API.
+
+    Example pairs:
+
+    | Origin | Destination | Route |
+    |--------|-------------|-------|
+    | `MEX` | `JFK` | Mexico City → New York |
+    | `LHR` | `CDG` | London Heathrow → Paris Charles de Gaulle |
+    | `LEMD` | `EGLL` | Madrid Barajas → London Heathrow (ICAO) |
+  </Step>
+  <Step title="Click Calcular">
+    Click the **Calcular** button. The form submits a `POST` request to `/distancia/`.
+  </Step>
+  <Step title="Review the result">
+    A result card appears showing the names of both airports and the distance between them in kilometers and miles.
+
+    <Note>
+      Both codes must be valid IATA or ICAO identifiers recognized by the AirportGap API. If either code is not found, an error message is displayed and no distance is returned.
+    </Note>
+  </Step>
+</Steps>
+
+## Displayed result fields
+
+The result is read from the `data.attributes` object returned by the API. The UI renders the following four fields:
+
+<ResponseField name="from_airport.name" type="string">
+  Full name of the origin airport, displayed at the top of the result card.
+</ResponseField>
+
+<ResponseField name="to_airport.name" type="string">
+  Full name of the destination airport, displayed below the origin.
+</ResponseField>
+
+<ResponseField name="kilometers" type="number">
+  The great-circle distance between the two airports in kilometers, rounded to the nearest whole number.
+</ResponseField>
+
+<ResponseField name="miles" type="number">
+  The same distance expressed in miles, rounded to the nearest whole number.
+</ResponseField>
+
+<Note>
+  The AirportGap API also returns a `nautical_miles` field in the response, but the current UI does not display it.
+</Note>
+
+## Underlying API call
+
+The view sends a `POST` request to the AirportGap distance endpoint:
+
+```
+POST https://airportgap.com/api/airports/distance
+```
+
+Request body:
+
+```json
+{
+  "from": "MEX",
+  "to": "JFK"
+}
+```
+
+Example response:
+
+```json
+{
+  "data": {
+    "id": "MEX-JFK",
+    "type": "airport_distance",
+    "attributes": {
+      "from_airport": {
+        "name": "Benito Juarez International Airport",
+        "iata": "MEX",
+        "icao": "MMMX"
+      },
+      "to_airport": {
+        "name": "John F Kennedy International Airport",
+        "iata": "JFK",
+        "icao": "KJFK"
+      },
+      "kilometers": 3363.37,
+      "miles": 2090.05,
+      "nautical_miles": 1815.63
+    }
+  }
+}
+```
+
+This endpoint does not require authentication.
+
+## View function
+
+The calculation is handled by the `calcular_distancia` view in `aeropuertos/views.py`:
+
+```python
+def calcular_distancia(request):
+    resultado = None
+    error = None
+    if request.method == 'POST':
+        origen = request.POST.get('origen', '').upper().strip()
+        destino = request.POST.get('destino', '').upper().strip()
+        response = requests.post(
+            f'{API_BASE}/airports/distance',
+            json={'from': origen, 'to': destino}
+        )
+        if response.status_code == 200:
+            resultado = response.json().get('data', {})
+        else:
+            error = 'No se pudo calcular la distancia. Verifica los códigos ingresados.'
+    return render(request, 'aeropuertos/distancia.html', {
+        'resultado': resultado,
+        'error': error
+    })
+```
+
+On `GET` the form is rendered empty. On `POST` both codes are uppercased, the request is sent, and the result (or error) is passed to the template.
